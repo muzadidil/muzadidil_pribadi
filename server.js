@@ -36,15 +36,23 @@ function dec(s) {
 function fileStore() {
   const dir = process.env.DATA_DIR || path.join(__dirname, 'data');
   const file = path.join(dir, 'vault.json');
-  let rows = [];
-  const save = () => {
-    const tmp = file + '.tmp';
-    fs.writeFileSync(tmp, JSON.stringify(rows), { mode: 0o600 });
-    fs.renameSync(tmp, file);
+  const sfile = path.join(dir, 'settings.json');
+  let rows = [], settings = {};
+  const write = (f, data) => {
+    const tmp = f + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(data), { mode: 0o600 });
+    fs.renameSync(tmp, f);
   };
+  const save = () => write(file, rows);
   return {
     name: 'file ' + file,
-    async init() { fs.mkdirSync(dir, { recursive: true }); try { rows = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (_) {} },
+    async init() {
+      fs.mkdirSync(dir, { recursive: true });
+      try { rows = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (_) {}
+      try { settings = JSON.parse(fs.readFileSync(sfile, 'utf8')); } catch (_) {}
+    },
+    async getSetting(k) { return settings[k]; },
+    async setSetting(k, v) { settings[k] = v; write(sfile, settings); },
     async all() { return rows; },
     async insert(es) { rows.push(...[].concat(es)); save(); },
     async update(e) { const i = rows.findIndex(x => x.id === e.id); if (i >= 0) { rows[i] = e; save(); } },
@@ -77,10 +85,13 @@ function mysqlStore() {
         created_at VARCHAR(30) NOT NULL,
         updated_at VARCHAR(30) NOT NULL
       ) CHARACTER SET utf8mb4`);
+      await pool.query('CREATE TABLE IF NOT EXISTS vault_settings (k VARCHAR(50) PRIMARY KEY, v TEXT NOT NULL) CHARACTER SET utf8mb4');
       // migrasi otomatis: kolom "kind" (password / ssh) untuk tabel lama
       try { await pool.query("ALTER TABLE vault_entries ADD COLUMN kind VARCHAR(20) NOT NULL DEFAULT 'password'"); }
       catch (e) { if (e.errno !== 1060) throw e; } // 1060 = kolom sudah ada
     },
+    async getSetting(k) { const [r] = await pool.query('SELECT v FROM vault_settings WHERE k=?', [k]); return r[0] ? r[0].v : undefined; },
+    async setSetting(k, v) { await pool.query('INSERT INTO vault_settings (k,v) VALUES (?,?) ON DUPLICATE KEY UPDATE v=VALUES(v)', [k, v]); },
     async all() { const [r] = await pool.query('SELECT * FROM vault_entries'); return r.map(toRow); },
     async insert(es) {
       for (const e of [].concat(es))
@@ -112,10 +123,16 @@ function isAuthed(req) {
   const [exp, sig] = t.split('.');
   return !!sig && eq(sign(exp), sig) && Number(exp) > Date.now();
 }
+// kredensial login: dari environment, ditimpa oleh yang disimpan lewat menu Akun
+let cred = { user: ADMIN_USER, hash: ADMIN_HASH };
 function checkPassword(pass) {
-  const [salt, hash] = ADMIN_HASH.split(':');
+  const [salt, hash] = cred.hash.split(':');
   const h = crypto.scryptSync(String(pass), salt, 64).toString('hex');
   return eq(h, hash);
+}
+function makeHash(pass) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  return salt + ':' + crypto.scryptSync(String(pass), salt, 64).toString('hex');
 }
 const attempts = new Map(); // batas percobaan login per IP
 function limited(ip) {
@@ -145,7 +162,7 @@ const wrap = fn => (req, res) => Promise.resolve(fn(req, res)).catch(err => {
 app.post('/api/login', (req, res) => {
   if (limited(req.ip)) return res.status(429).json({ error: 'Terlalu banyak percobaan. Coba lagi 15 menit lagi.' });
   const { user, password } = req.body || {};
-  const ok = typeof user === 'string' && typeof password === 'string' && eq(user, ADMIN_USER) && checkPassword(password);
+  const ok = typeof user === 'string' && typeof password === 'string' && eq(user, cred.user) && checkPassword(password);
   if (!ok) {
     const a = attempts.get(req.ip) || { n: 0, t: Date.now() };
     attempts.set(req.ip, { n: a.n + 1, t: Date.now() });
@@ -169,6 +186,22 @@ app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Belum login' });
   res.redirect('/login');
 });
+
+// ganti user / password login (disimpan di penyimpanan, menimpa environment)
+app.get('/api/account', (req, res) => res.json({ user: cred.user }));
+app.post('/api/account', wrap(async (req, res) => {
+  const { currentPassword, newUser, newPassword } = req.body || {};
+  if (typeof currentPassword !== 'string' || !checkPassword(currentPassword))
+    return res.status(403).json({ error: 'Password saat ini salah.' });
+  const u = String(newUser || '').trim();
+  if (u.length < 3 || u.length > 50) return res.status(400).json({ error: 'User 3-50 karakter.' });
+  if (typeof newPassword !== 'string' || newPassword.length < 8 || newPassword.length > 200)
+    return res.status(400).json({ error: 'Password baru minimal 8 karakter.' });
+  const next = { user: u, hash: makeHash(newPassword) };
+  await store.setSetting('admin', JSON.stringify(next));
+  cred = next;
+  res.json({ ok: true, user: u });
+}));
 
 const kindOf = k => (k === 'ssh' ? 'ssh' : 'password');
 const clean = (b = {}) => ({
@@ -237,5 +270,9 @@ app.get('/api/stats', wrap(async (req, res) => {
 
 app.use(express.static(path.join(__dirname, 'public'), { index: 'index.html' }));
 store.init()
+  .then(async () => {
+    const saved = await store.getSetting('admin');
+    if (saved) { try { const c = JSON.parse(saved); if (c.user && c.hash) cred = c; } catch (_) {} }
+  })
   .then(() => app.listen(PORT, () => console.log(`Vault berjalan di port ${PORT} - penyimpanan: ${store.name}`)))
   .catch(err => { console.error('Gagal menyiapkan penyimpanan:', err.message); process.exit(1); });
