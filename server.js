@@ -63,8 +63,8 @@ function mysqlStore() {
     connectionLimit: 5,
     charset: 'utf8mb4',
   });
-  const toRow = r => ({ id: r.id, website: r.website, user: r.username, password: r.password, tech: r.tech, createdAt: r.created_at, updatedAt: r.updated_at });
-  const vals = e => [e.id, e.website, e.user, e.password, e.tech, e.createdAt, e.updatedAt];
+  const toRow = r => ({ id: r.id, kind: r.kind, website: r.website, user: r.username, password: r.password, tech: r.tech, createdAt: r.created_at, updatedAt: r.updated_at });
+  const vals = e => [e.id, e.kind || 'password', e.website, e.user, e.password, e.tech, e.createdAt, e.updatedAt];
   return {
     name: `mysql ${process.env.DB_USER}@${process.env.DB_HOST || 'localhost'}/${process.env.DB_NAME}`,
     async init() {
@@ -77,11 +77,14 @@ function mysqlStore() {
         created_at VARCHAR(30) NOT NULL,
         updated_at VARCHAR(30) NOT NULL
       ) CHARACTER SET utf8mb4`);
+      // migrasi otomatis: kolom "kind" (password / ssh) untuk tabel lama
+      try { await pool.query("ALTER TABLE vault_entries ADD COLUMN kind VARCHAR(20) NOT NULL DEFAULT 'password'"); }
+      catch (e) { if (e.errno !== 1060) throw e; } // 1060 = kolom sudah ada
     },
     async all() { const [r] = await pool.query('SELECT * FROM vault_entries'); return r.map(toRow); },
     async insert(es) {
       for (const e of [].concat(es))
-        await pool.query('INSERT INTO vault_entries (id,website,username,password,tech,created_at,updated_at) VALUES (?,?,?,?,?,?,?)', vals(e));
+        await pool.query('INSERT INTO vault_entries (id,kind,website,username,password,tech,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)', vals(e));
     },
     async update(e) {
       await pool.query('UPDATE vault_entries SET website=?, username=?, password=?, tech=?, updated_at=? WHERE id=?',
@@ -167,16 +170,21 @@ app.use((req, res, next) => {
   res.redirect('/login');
 });
 
+const kindOf = k => (k === 'ssh' ? 'ssh' : 'password');
 const clean = (b = {}) => ({
+  kind: kindOf(b.kind),
   website: String(b.website || '').trim().slice(0, 300),
   user: String(b.user || '').trim().slice(0, 200),
   password: String(b.password ?? ''),
   tech: String(b.tech || '').trim().slice(0, 100),
 });
-const pub = e => ({ id: e.id, website: e.website, user: e.user, tech: e.tech, createdAt: e.createdAt, updatedAt: e.updatedAt });
+const pub = e => ({ id: e.id, kind: kindOf(e.kind), website: e.website, user: e.user, tech: e.tech, createdAt: e.createdAt, updatedAt: e.updatedAt });
 const newEntry = b => { const now = new Date().toISOString(); return { id: crypto.randomUUID(), ...b, password: enc(b.password), createdAt: now, updatedAt: now }; };
 
-app.get('/api/entries', wrap(async (req, res) => res.json((await store.all()).map(pub))));
+app.get('/api/entries', wrap(async (req, res) => {
+  const k = kindOf(req.query.kind);
+  res.json((await store.all()).filter(e => kindOf(e.kind) === k).map(pub));
+}));
 app.get('/api/entries/:id/password', wrap(async (req, res) => {
   const e = (await store.all()).find(x => x.id === req.params.id);
   if (!e) return res.status(404).json({ error: 'Tidak ditemukan' });
@@ -211,12 +219,15 @@ app.post('/api/import', wrap(async (req, res) => {
   res.json({ imported: rows.length });
 }));
 app.get('/api/stats', wrap(async (req, res) => {
-  const entries = await store.all();
+  const everything = await store.all();
+  const sshTotal = everything.filter(e => kindOf(e.kind) === 'ssh').length;
+  const entries = everything.filter(e => kindOf(e.kind) === 'password');
   const byTech = {};
   for (const e of entries) { const t = e.tech || '(tanpa teknologi)'; byTech[t] = (byTech[t] || 0) + 1; }
   const recent = [...entries].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 8).map(pub);
   res.json({
     total: entries.length,
+    sshTotal,
     techCount: Object.keys(byTech).length,
     noPassword: entries.filter(e => dec(e.password) === '').length,
     byTech: Object.entries(byTech).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count })),

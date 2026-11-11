@@ -108,6 +108,7 @@
     <nav>
       <a data-route="dashboard" href="#dashboard">Dashboard</a>
       <a data-route="password" href="#password">Password</a>
+      <a data-route="ssh" href="#ssh">SSH</a>
     </nav>
     <div class="side-foot"><button id="logout">Keluar</button></div>
   </aside>
@@ -130,7 +131,10 @@
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-let entries = [], filter = { q: '', tech: '' };
+let entries = [], filter = { q: '', tech: '' }, kind = 'password';
+const L = () => kind === 'ssh'
+  ? { title: 'SSH', site: 'Host / IP', ph: 'contoh: 103.12.34.56 atau srv1.zasha.online' }
+  : { title: 'Password', site: 'Website', ph: 'contoh: pos.zasha.online' };
 
 async function api(url, method = 'GET', body) {
   const r = await fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
@@ -156,6 +160,7 @@ async function renderDashboard() {
   $('#view').innerHTML = `
     <div class="cards">
       <div class="card"><div class="lbl">Total Aplikasi</div><div class="val">${s.total}</div></div>
+      <div class="card"><div class="lbl">Total SSH</div><div class="val">${s.sshTotal}</div></div>
       <div class="card"><div class="lbl">Jenis Teknologi</div><div class="val">${s.techCount}</div></div>
       <div class="card"><div class="lbl">Tanpa Password</div><div class="val">${s.noPassword}</div></div>
     </div>
@@ -171,22 +176,22 @@ async function renderDashboard() {
 
 /* ---------- PASSWORD ---------- */
 async function renderPassword() {
-  $('#title').textContent = 'Password';
+  $('#title').textContent = L().title;
   $('#topActions').innerHTML = `<button class="btn" id="btnImport">Impor</button> <button class="btn primary" id="btnAdd">+ Tambah</button>`;
   $('#btnAdd').onclick = () => openForm();
   $('#btnImport').onclick = openImport;
   $('#view').innerHTML = `
     <div class="tools">
-      <input id="q" placeholder="Cari website, user, atau teknologi..." value="${esc(filter.q)}">
+      <input id="q" placeholder="Cari ${L().site.toLowerCase()}, user, atau teknologi..." value="${esc(filter.q)}">
       <select id="techSel"></select>
     </div>
     <div class="tbl-wrap"><table>
-      <thead><tr><th>Website</th><th>User</th><th>Password</th><th>Teknologi</th><th></th></tr></thead>
+      <thead><tr><th>${L().site}</th><th>User</th><th>Password</th><th>Teknologi</th><th></th></tr></thead>
       <tbody id="tbody"></tbody>
     </table></div>
     <div class="count" id="count"></div>`;
   $('#q').oninput = e => { filter.q = e.target.value; drawRows(); };
-  entries = await api('/api/entries');
+  entries = await api('/api/entries?kind=' + kind);
   const techs = [...new Set(entries.map(e => e.tech).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   $('#techSel').innerHTML = '<option value="">Semua teknologi</option>' + techs.map(t => `<option ${t === filter.tech ? 'selected' : ''}>${esc(t)}</option>`).join('');
   $('#techSel').onchange = e => { filter.tech = e.target.value; drawRows(); };
@@ -244,9 +249,9 @@ function genPass() {
   return [...a].map(n => cs[n % cs.length]).join('');
 }
 function openForm(e) {
-  openModal(`<h2>${e ? 'Ubah' : 'Tambah'} Password</h2>
+  openModal(`<h2>${e ? 'Ubah' : 'Tambah'} ${L().title}</h2>
     <form id="form" autocomplete="off">
-      <label>Website</label><input name="website" value="${esc(e?.website)}" placeholder="contoh: pos.zasha.online" required>
+      <label>${L().site}</label><input name="website" value="${esc(e?.website)}" placeholder="${esc(L().ph)}" required>
       <label>User</label><input name="user" value="${esc(e?.user)}">
       <label>Password</label>
       <div class="row"><input name="password" id="pwInput" placeholder="${e ? 'Kosongkan jika tidak diubah' : ''}"><button type="button" class="btn" id="gen">Acak</button></div>
@@ -261,7 +266,7 @@ function openForm(e) {
     const f = Object.fromEntries(new FormData(ev.target));
     try {
       if (e) { if (f.password === '') delete f.password; await api(`/api/entries/${e.id}`, 'PUT', f); }
-      else await api('/api/entries', 'POST', f);
+      else await api('/api/entries', 'POST', { ...f, kind });
       closeModal(); toast('Tersimpan'); renderPassword();
     } catch (err) { if (err.message !== '401') toast(err.message); }
   };
@@ -282,14 +287,14 @@ function parseCSV(text) {
 }
 function openImport() {
   openModal(`<h2>Impor Massal</h2>
-    <p class="hint" style="margin:0 0 6px">Tempel data dengan urutan kolom: <b>website, user, password, teknologi</b> (CSV / tab dari Excel). Baris header "website" otomatis dilewati.</p>
+    <p class="hint" style="margin:0 0 6px">Tempel data dengan urutan kolom: <b>${L().site.toLowerCase()}, user, password, teknologi</b> (CSV / tab dari Excel). Baris header "website" otomatis dilewati.</p>
     <textarea id="csv" placeholder="pos.zasha.online,admin,rahasia123,Laravel"></textarea>
     <div class="foot"><button class="btn" id="cancel">Batal</button><button class="btn primary" id="go">Impor</button></div>`);
   $('#cancel').onclick = closeModal;
   $('#go').onclick = async () => {
     let rows = parseCSV($('#csv').value);
     if (rows.length && /^website$/i.test(rows[0][0].trim())) rows.shift();
-    const data = rows.map(r => ({ website: r[0] || '', user: r[1] || '', password: r[2] || '', tech: r[3] || '' }));
+    const data = rows.map(r => ({ kind, website: r[0] || '', user: r[1] || '', password: r[2] || '', tech: r[3] || '' }));
     if (!data.length) return toast('Tidak ada baris');
     try { const r = await api('/api/import', 'POST', data); closeModal(); toast(`${r.imported} baris diimpor`); renderPassword(); }
     catch (err) { if (err.message !== '401') toast(err.message); }
@@ -298,10 +303,12 @@ function openImport() {
 
 /* ---------- ROUTER ---------- */
 async function route() {
-  const r = location.hash.replace('#', '') === 'password' ? 'password' : 'dashboard';
+  const h = location.hash.replace('#', '');
+  const r = h === 'password' || h === 'ssh' ? h : 'dashboard';
   document.querySelectorAll('nav a').forEach(a => a.classList.toggle('active', a.dataset.route === r));
   $('#side').classList.remove('open');
-  try { await (r === 'password' ? renderPassword() : renderDashboard()); } catch (e) { if (e.message !== '401') toast(e.message); }
+  if (r !== 'dashboard') { if (kind !== r) filter = { q: '', tech: '' }; kind = r; }
+  try { await (r === 'dashboard' ? renderDashboard() : renderPassword()); } catch (e) { if (e.message !== '401') toast(e.message); }
 }
 window.addEventListener('hashchange', route);
 $('#hamb').onclick = () => $('#side').classList.toggle('open');
