@@ -155,6 +155,7 @@ app.use((req, res, next) => {
 });
 app.use(express.json({ limit: '2mb' }));
 const wrap = fn => (req, res) => Promise.resolve(fn(req, res)).catch(err => {
+  if (err && err.status) return res.status(err.status).json({ error: err.message });
   console.error(err);
   res.status(500).json({ error: 'Kesalahan server / database' });
 });
@@ -182,6 +183,7 @@ app.post('/api/logout', (req, res) => {
 // halaman login terbuka; sisanya wajib login
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.use((req, res, next) => {
+  if (req.path === '/mcp' || req.path.startsWith('/mcp/')) return next(); // MCP memakai token sendiri
   if (isAuthed(req)) return next();
   if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Belum login' });
   res.redirect('/login');
@@ -228,13 +230,15 @@ const cleanNode = (n, withKids) => {
   return o;
 };
 app.get('/api/menu', wrap(async (req, res) => res.json(await getMenu())));
-app.put('/api/menu', wrap(async (req, res) => {
-  if (!Array.isArray(req.body) || !req.body.length || req.body.length > 50) return res.status(400).json({ error: 'Menu tidak valid.' });
-  const menu = req.body.map(n => cleanNode(n, true));
+const fail = (status, message) => Object.assign(new Error(message), { status });
+// validasi + simpan susunan menu; melempar fail(status,pesan) bila tidak valid
+async function saveMenu(raw) {
+  if (!Array.isArray(raw) || !raw.length || raw.length > 50) throw fail(400, 'Menu tidak valid.');
+  const menu = raw.map(n => cleanNode(n, true));
   const seen = new Set();
   for (const n of menu.flatMap(p => [p, ...p.children])) {
-    if (!n.id || !n.label) return res.status(400).json({ error: 'Setiap menu wajib punya nama.' });
-    if (seen.has(n.id)) return res.status(400).json({ error: 'ID menu ganda.' });
+    if (!n.id || !n.label) throw fail(400, 'Setiap menu wajib punya nama.');
+    if (seen.has(n.id)) throw fail(400, 'ID menu ganda.');
     seen.add(n.id);
   }
   // menu yang tidak lagi jadi "daftar data" tidak boleh masih berisi data
@@ -243,11 +247,12 @@ app.put('/api/menu', wrap(async (req, res) => {
   for (const l of oldLeaves) {
     if (newIds.has(l.id)) continue;
     const n = all.filter(e => kindOf(e.kind) === l.id).length;
-    if (n) return res.status(409).json({ error: `Menu "${l.path}" masih berisi ${n} data. Pindahkan dulu lewat tombol Ubah (pilih menu lain).` });
+    if (n) throw fail(409, `Menu "${l.path}" masih berisi ${n} data. Pindahkan dulu lewat tombol Ubah (pilih menu lain).`);
   }
   await store.setSetting('menu', JSON.stringify(menu));
-  res.json(menu);
-}));
+  return menu;
+}
+app.put('/api/menu', wrap(async (req, res) => res.json(await saveMenu(req.body))));
 const isLeaf = async k => leavesOf(await getMenu()).some(l => l.id === k);
 const clean = (b = {}) => ({
   kind: kindOf(b.kind),
@@ -258,6 +263,9 @@ const clean = (b = {}) => ({
 });
 const pub = e => ({ id: e.id, kind: kindOf(e.kind), website: e.website, user: e.user, tech: e.tech, createdAt: e.createdAt, updatedAt: e.updatedAt });
 const newEntry = b => { const now = new Date().toISOString(); return { id: crypto.randomUUID(), ...b, password: enc(b.password), createdAt: now, updatedAt: now }; };
+
+// MCP: biarkan AI mengelola data lewat /mcp (butuh MCP_TOKEN di environment)
+require('./mcp')(app, { store, kindOf, getMenu, saveMenu, leavesOf, isLeaf, clean, pub, newEntry, enc, dec, eq, limited, attempts, fail });
 
 app.get('/api/entries', wrap(async (req, res) => {
   const k = kindOf(req.query.kind);

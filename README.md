@@ -26,3 +26,12 @@ Nginx: `proxy_pass http://127.0.0.1:3000;` untuk `muzadidil.zasha.online` + SSL 
 
 ## Impor 100+ aplikasi
 Menu Password → **Impor** → tempel dari Excel/CSV dengan urutan kolom `website, user, password, teknologi`.
+
+## MCP (kelola lewat AI)
+Aplikasi ini juga menyediakan server MCP di `https://muzadidil.zasha.online/mcp/<MCP_TOKEN>`
+(atau `/mcp` dengan header `Authorization: Bearer <MCP_TOKEN>`). Aktif hanya jika `MCP_TOKEN` (min. 24 karakter) diisi.
+
+Tool: `list_menus`, `list_entries`, `add_entry`, `bulk_add_entries`, `update_entry`, `delete_entry`,
+`create_menu`, `rename_menu`, `delete_menu`. Password asli **tidak** dikirim ke AI.
+`get_password` baru tersedia bila `MCP_ALLOW_REVEAL=1` (tidak disarankan).
+Perlakukan token seperti password; ganti nilainya di environment bila bocor.
