@@ -1,0 +1,12 @@
+{
+  "name": "muzadidil-vault",
+  "version": "1.0.0",
+  "description": "Gudang password demo aplikasi - muzadidil.zasha.online",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "setup": "node setup.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": { "express": "^4.21.2" }
+}

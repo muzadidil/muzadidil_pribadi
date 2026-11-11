@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Masuk - Gudang Password</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 14px; color: #333; background: #1d2c3a; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .box { background: #fff; width: 100%; max-width: 360px; border-radius: 6px; padding: 32px 28px; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  p.sub { color: #8a96a3; font-size: 13px; margin-bottom: 22px; }
+  label { display: block; font-size: 12px; color: #5b6772; margin-bottom: 5px; }
+  input { width: 100%; height: 40px; border: 1px solid #d3d9df; border-radius: 4px; padding: 0 12px; font-size: 14px; margin-bottom: 14px; }
+  input:focus { outline: none; border-color: #00abdb; }
+  button { width: 100%; height: 42px; border: 0; border-radius: 4px; background: #00abdb; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
+  button:disabled { opacity: .6; cursor: default; }
+  .err { color: #e0443e; font-size: 13px; margin-bottom: 12px; min-height: 18px; }
+</style>
+</head>
+<body>
+<form class="box" id="f">
+  <h1>Gudang Password</h1>
+  <p class="sub">muzadidil.zasha.online</p>
+  <label for="u">User</label>
+  <input id="u" autocomplete="username" autofocus required>
+  <label for="p">Password</label>
+  <input id="p" type="password" autocomplete="current-password" required>
+  <div class="err" id="e"></div>
+  <button id="b">Masuk</button>
+</form>
+<script>
+document.getElementById('f').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  const b = document.getElementById('b'), e = document.getElementById('e');
+  b.disabled = true; e.textContent = '';
+  try {
+    const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user: document.getElementById('u').value, password: document.getElementById('p').value }) });
+    const d = await r.json();
+    if (r.ok) location.href = '/'; else e.textContent = d.error || 'Gagal masuk.';
+  } catch (_) { e.textContent = 'Tidak bisa terhubung ke server.'; }
+  b.disabled = false;
+});
+</script>
+</body>
+</html>
