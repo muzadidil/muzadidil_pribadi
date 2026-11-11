@@ -17,17 +17,7 @@ if (!ADMIN_HASH || !SESSION_SECRET || !DATA_KEY || DATA_KEY.length !== 64) {
 }
 const KEY = Buffer.from(DATA_KEY, 'hex');
 
-// ---- penyimpanan terenkripsi (kolom password: AES-256-GCM) ----
-const DB_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
-const DB_FILE = path.join(DB_DIR, 'vault.json');
-fs.mkdirSync(DB_DIR, { recursive: true });
-let entries = [];
-try { entries = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch (_) {}
-function save() {
-  const tmp = DB_FILE + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(entries), { mode: 0o600 });
-  fs.renameSync(tmp, DB_FILE);
-}
+// ---- enkripsi kolom password: AES-256-GCM ----
 function enc(text) {
   const iv = crypto.randomBytes(12);
   const c = crypto.createCipheriv('aes-256-gcm', KEY, iv);
@@ -40,6 +30,67 @@ function dec(s) {
   d.setAuthTag(tag);
   return Buffer.concat([d.update(ct), d.final()]).toString('utf8');
 }
+
+// ---- penyimpanan: MySQL bila DB_NAME diisi, jika tidak pakai file JSON ----
+// Antarmuka: init(), all(), insert(e), update(e), remove(id)  -> semua async
+function fileStore() {
+  const dir = process.env.DATA_DIR || path.join(__dirname, 'data');
+  const file = path.join(dir, 'vault.json');
+  let rows = [];
+  const save = () => {
+    const tmp = file + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(rows), { mode: 0o600 });
+    fs.renameSync(tmp, file);
+  };
+  return {
+    name: 'file ' + file,
+    async init() { fs.mkdirSync(dir, { recursive: true }); try { rows = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (_) {} },
+    async all() { return rows; },
+    async insert(es) { rows.push(...[].concat(es)); save(); },
+    async update(e) { const i = rows.findIndex(x => x.id === e.id); if (i >= 0) { rows[i] = e; save(); } },
+    async remove(id) { const n = rows.length; rows = rows.filter(x => x.id !== id); if (rows.length !== n) save(); return rows.length !== n; },
+  };
+}
+function mysqlStore() {
+  const mysql = require('mysql2/promise');
+  const pool = mysql.createPool({
+    host: process.env.DB_HOST || 'localhost',
+    port: Number(process.env.DB_PORT || 3306),
+    user: process.env.DB_USER,
+    password: process.env.DB_PASS,
+    database: process.env.DB_NAME,
+    waitForConnections: true,
+    connectionLimit: 5,
+    charset: 'utf8mb4',
+  });
+  const toRow = r => ({ id: r.id, website: r.website, user: r.username, password: r.password, tech: r.tech, createdAt: r.created_at, updatedAt: r.updated_at });
+  const vals = e => [e.id, e.website, e.user, e.password, e.tech, e.createdAt, e.updatedAt];
+  return {
+    name: `mysql ${process.env.DB_USER}@${process.env.DB_HOST || 'localhost'}/${process.env.DB_NAME}`,
+    async init() {
+      await pool.query(`CREATE TABLE IF NOT EXISTS vault_entries (
+        id CHAR(36) PRIMARY KEY,
+        website VARCHAR(300) NOT NULL,
+        username VARCHAR(200) NOT NULL DEFAULT '',
+        password TEXT NOT NULL,
+        tech VARCHAR(100) NOT NULL DEFAULT '',
+        created_at VARCHAR(30) NOT NULL,
+        updated_at VARCHAR(30) NOT NULL
+      ) CHARACTER SET utf8mb4`);
+    },
+    async all() { const [r] = await pool.query('SELECT * FROM vault_entries'); return r.map(toRow); },
+    async insert(es) {
+      for (const e of [].concat(es))
+        await pool.query('INSERT INTO vault_entries (id,website,username,password,tech,created_at,updated_at) VALUES (?,?,?,?,?,?,?)', vals(e));
+    },
+    async update(e) {
+      await pool.query('UPDATE vault_entries SET website=?, username=?, password=?, tech=?, updated_at=? WHERE id=?',
+        [e.website, e.user, e.password, e.tech, e.updatedAt, e.id]);
+    },
+    async remove(id) { const [r] = await pool.query('DELETE FROM vault_entries WHERE id=?', [id]); return r.affectedRows > 0; },
+  };
+}
+const store = process.env.DB_NAME ? mysqlStore() : fileStore();
 
 // ---- sesi: cookie bertanda tangan ----
 const sign = v => crypto.createHmac('sha256', SESSION_SECRET).update(v).digest('base64url');
@@ -83,6 +134,10 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.json({ limit: '2mb' }));
+const wrap = fn => (req, res) => Promise.resolve(fn(req, res)).catch(err => {
+  console.error(err);
+  res.status(500).json({ error: 'Kesalahan server / database' });
+});
 
 app.post('/api/login', (req, res) => {
   if (limited(req.ip)) return res.status(429).json({ error: 'Terlalu banyak percobaan. Coba lagi 15 menit lagi.' });
@@ -119,54 +174,44 @@ const clean = (b = {}) => ({
   tech: String(b.tech || '').trim().slice(0, 100),
 });
 const pub = e => ({ id: e.id, website: e.website, user: e.user, tech: e.tech, createdAt: e.createdAt, updatedAt: e.updatedAt });
+const newEntry = b => { const now = new Date().toISOString(); return { id: crypto.randomUUID(), ...b, password: enc(b.password), createdAt: now, updatedAt: now }; };
 
-app.get('/api/entries', (req, res) => res.json(entries.map(pub)));
-app.get('/api/entries/:id/password', (req, res) => {
-  const e = entries.find(x => x.id === req.params.id);
+app.get('/api/entries', wrap(async (req, res) => res.json((await store.all()).map(pub))));
+app.get('/api/entries/:id/password', wrap(async (req, res) => {
+  const e = (await store.all()).find(x => x.id === req.params.id);
   if (!e) return res.status(404).json({ error: 'Tidak ditemukan' });
   res.json({ password: dec(e.password) });
-});
-app.post('/api/entries', (req, res) => {
+}));
+app.post('/api/entries', wrap(async (req, res) => {
   const b = clean(req.body);
   if (!b.website) return res.status(400).json({ error: 'Website wajib diisi' });
-  const now = new Date().toISOString();
-  const e = { id: crypto.randomUUID(), ...b, password: enc(b.password), createdAt: now, updatedAt: now };
-  entries.push(e); save();
+  const e = newEntry(b);
+  await store.insert(e);
   res.status(201).json(pub(e));
-});
-app.put('/api/entries/:id', (req, res) => {
-  const e = entries.find(x => x.id === req.params.id);
+}));
+app.put('/api/entries/:id', wrap(async (req, res) => {
+  const e = (await store.all()).find(x => x.id === req.params.id);
   if (!e) return res.status(404).json({ error: 'Tidak ditemukan' });
   const b = clean(req.body);
   if (!b.website) return res.status(400).json({ error: 'Website wajib diisi' });
-  Object.assign(e, { website: b.website, user: b.user, tech: b.tech, updatedAt: new Date().toISOString() });
+  const u = { ...e, website: b.website, user: b.user, tech: b.tech, updatedAt: new Date().toISOString() };
   // password tidak dikirim / null = tidak diubah
-  if (req.body.password !== undefined && req.body.password !== null) e.password = enc(b.password);
-  save();
-  res.json(pub(e));
-});
-app.delete('/api/entries/:id', (req, res) => {
-  const n = entries.length;
-  entries = entries.filter(x => x.id !== req.params.id);
-  if (entries.length === n) return res.status(404).json({ error: 'Tidak ditemukan' });
-  save();
+  if (req.body.password !== undefined && req.body.password !== null) u.password = enc(b.password);
+  await store.update(u);
+  res.json(pub(u));
+}));
+app.delete('/api/entries/:id', wrap(async (req, res) => {
+  if (!(await store.remove(req.params.id))) return res.status(404).json({ error: 'Tidak ditemukan' });
   res.json({ ok: true });
-});
+}));
 // impor massal: [{website,user,password,tech}, ...] (untuk 100+ aplikasi sekaligus)
-app.post('/api/import', (req, res) => {
-  const rows = Array.isArray(req.body) ? req.body : [];
-  const now = new Date().toISOString();
-  let n = 0;
-  for (const r of rows.slice(0, 2000)) {
-    const b = clean(r);
-    if (!b.website) continue;
-    entries.push({ id: crypto.randomUUID(), ...b, password: enc(b.password), createdAt: now, updatedAt: now });
-    n++;
-  }
-  if (n) save();
-  res.json({ imported: n });
-});
-app.get('/api/stats', (req, res) => {
+app.post('/api/import', wrap(async (req, res) => {
+  const rows = (Array.isArray(req.body) ? req.body : []).slice(0, 2000).map(clean).filter(b => b.website).map(newEntry);
+  if (rows.length) await store.insert(rows);
+  res.json({ imported: rows.length });
+}));
+app.get('/api/stats', wrap(async (req, res) => {
+  const entries = await store.all();
   const byTech = {};
   for (const e of entries) { const t = e.tech || '(tanpa teknologi)'; byTech[t] = (byTech[t] || 0) + 1; }
   const recent = [...entries].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 8).map(pub);
@@ -177,7 +222,9 @@ app.get('/api/stats', (req, res) => {
     byTech: Object.entries(byTech).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count })),
     recent,
   });
-});
+}));
 
 app.use(express.static(path.join(__dirname, 'public'), { index: 'index.html' }));
-app.listen(PORT, () => console.log(`Vault berjalan di http://localhost:${PORT}`));
+store.init()
+  .then(() => app.listen(PORT, () => console.log(`Vault berjalan di port ${PORT} - penyimpanan: ${store.name}`)))
+  .catch(err => { console.error('Gagal menyiapkan penyimpanan:', err.message); process.exit(1); });
