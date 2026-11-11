@@ -2,8 +2,14 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#1d2c3a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <title>Masuk - Gudang Password</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -12,7 +18,7 @@
   h1 { font-size: 20px; margin-bottom: 4px; }
   p.sub { color: #8a96a3; font-size: 13px; margin-bottom: 22px; }
   label { display: block; font-size: 12px; color: #5b6772; margin-bottom: 5px; }
-  input { width: 100%; height: 40px; border: 1px solid #d3d9df; border-radius: 4px; padding: 0 12px; font-size: 14px; margin-bottom: 14px; }
+  input { width: 100%; height: 44px; border: 1px solid #d3d9df; border-radius: 4px; padding: 0 12px; font-size: 16px; margin-bottom: 14px; }
   input:focus { outline: none; border-color: #00abdb; }
   button { width: 100%; height: 42px; border: 0; border-radius: 4px; background: #00abdb; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
   button:disabled { opacity: .6; cursor: default; }
@@ -31,6 +37,7 @@
   <button id="b">Masuk</button>
 </form>
 <script>
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
 document.getElementById('f').addEventListener('submit', async ev => {
   ev.preventDefault();
   const b = document.getElementById('b'), e = document.getElementById('e');

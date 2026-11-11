@@ -180,6 +180,9 @@ app.post('/api/logout', (req, res) => {
   res.json({ ok: true });
 });
 
+// berkas PWA (manifest, service worker, ikon) harus bisa diambil tanpa login
+app.use(express.static(path.join(__dirname, 'pwa'), { index: false }));
+
 // halaman login terbuka; sisanya wajib login
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.use((req, res, next) => {

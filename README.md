@@ -35,3 +35,7 @@ Tool: `list_menus`, `list_entries`, `add_entry`, `bulk_add_entries`, `update_ent
 `create_menu`, `rename_menu`, `delete_menu`. Password asli **tidak** dikirim ke AI.
 `get_password` baru tersedia bila `MCP_ALLOW_REVEAL=1` (tidak disarankan).
 Perlakukan token seperti password; ganti nilainya di environment bila bocor.
+
+## Aplikasi HP (PWA)
+Buka `https://muzadidil.zasha.online` di HP lalu: Chrome/Android → menu ⋮ → **Instal aplikasi**; Safari/iPhone → Bagikan → **Tambah ke Layar Utama**.
+Berkas PWA ada di folder `pwa/` (ikon, manifest, service worker). Data dan halaman aplikasi sengaja tidak di-cache (berisi password), jadi hanya bisa dibuka saat online.
