@@ -103,6 +103,29 @@
   .modal textarea:focus { outline: none; border-color: #00abdb; }
   .row { display: flex; gap: 8px; }
   .modal .foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+  /* indikator kekuatan password + Password Maker */
+  .meter { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .meter[hidden] { display: none; }
+  .meter-bars { display: flex; gap: 4px; flex: 1; }
+  .meter-bars i { flex: 1; height: 6px; border-radius: 3px; background: #e3e8ed; }
+  .meter[data-l="0"] .meter-bars i:nth-child(-n+1) { background: #e0443e; }
+  .meter[data-l="1"] .meter-bars i:nth-child(-n+2) { background: #f0a020; }
+  .meter[data-l="2"] .meter-bars i:nth-child(-n+3) { background: #5cb85c; }
+  .meter[data-l="3"] .meter-bars i:nth-child(-n+4) { background: #1b8a4b; }
+  .meter-lbl { font-size: 12px; font-weight: 600; min-width: 78px; text-align: right; }
+  .meter[data-l="0"] .meter-lbl { color: #e0443e; } .meter[data-l="1"] .meter-lbl { color: #d58512; }
+  .meter[data-l="2"] .meter-lbl { color: #3d9a3d; } .meter[data-l="3"] .meter-lbl { color: #1b8a4b; }
+  .meter-tip { font-size: 11.5px; color: #8a96a3; margin-top: 4px; }
+  details.pm { margin-top: 12px; border: 1px solid #e3e8ed; border-radius: 6px; padding: 0 12px; }
+  details.pm summary { cursor: pointer; padding: 11px 0; font-size: 13px; font-weight: 600; color: #2574a9; }
+  details.pm[open] summary { border-bottom: 1px solid #f0f3f5; margin-bottom: 4px; }
+  .pm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+  .pm-grid .lbl2 { margin-top: 10px; }
+  .pm-radios { display: flex; gap: 16px; flex-wrap: wrap; margin: 12px 0 4px; font-size: 13px; }
+  .pm-radios label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .pm-out { font-family: Consolas, monospace; font-size: 17px; letter-spacing: .5px; background: #f6f8fa; border: 1px dashed #c9d2da; border-radius: 4px; padding: 11px 12px; margin-top: 12px; word-break: break-all; min-height: 44px; }
+  .pm-actions { display: flex; gap: 8px; margin: 10px 0 12px; }
+  @media (max-width: 480px) { .pm-grid { grid-template-columns: 1fr; } }
   .hint { font-size: 12px; color: #8a96a3; margin-top: 6px; line-height: 1.5; }
   .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #1d2c3a; color: #fff; padding: 10px 18px; border-radius: 4px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 20; max-width: 90vw; }
   .toast.show { opacity: 1; }
@@ -336,6 +359,97 @@ function genPass() {
   const a = new Uint32Array(16); crypto.getRandomValues(a);
   return [...a].map(n => cs[n % cs.length]).join('');
 }
+/* ---------- KEKUATAN PASSWORD & PASSWORD MAKER ---------- */
+const LEVELS = ['Easy', 'Middle', 'Strong', 'Very Strong'];
+function strength(pw) {
+  const chars = [...pw], low = pw.toLowerCase();
+  const pool = (/[a-z]/.test(pw) ? 26 : 0) + (/[A-Z]/.test(pw) ? 26 : 0) + (/\d/.test(pw) ? 10 : 0) + (/[^A-Za-z0-9]/.test(pw) ? 33 : 0);
+  let eff = chars.length;
+  const seen = new Set(); let rep = 0;
+  for (const c of chars) seen.has(c) ? rep++ : seen.add(c);
+  eff -= rep * 0.6; // karakter berulang dihitung lebih lemah
+  const rows = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm', '1234567890', 'abcdefghijklmnopqrstuvwxyz', 'qazwsxedcrfvtgbyhnujmikolp'];
+  for (let i = 0; i + 3 <= low.length; i++) { // urutan seperti abc, 123, qwe, qaz
+    const t = low.slice(i, i + 3);
+    if (rows.some(r => r.includes(t) || [...r].reverse().join('').includes(t))) eff -= 1;
+  }
+  let bits = Math.max(0, eff) * Math.log2(Math.max(pool, 2));
+  const weak = ['password', 'passw0rd', 'admin', 'qwerty', 'letmein', 'welcome', '123456', '111111', 'iloveyou'].some(w => low.includes(w));
+  if (weak) bits = Math.min(bits, 25);
+  const level = bits < 32 ? 0 : bits < 52 ? 1 : bits < 72 ? 2 : 3;
+  const tips = [];
+  if (weak) tips.push('mengandung kata umum');
+  if (chars.length < 12) tips.push('perpanjang minimal 12 karakter');
+  if (!/[A-Z]/.test(pw)) tips.push('tambah huruf kapital');
+  if (!/[a-z]/.test(pw)) tips.push('tambah huruf kecil');
+  if (!/\d/.test(pw)) tips.push('tambah angka');
+  if (!/[^A-Za-z0-9]/.test(pw)) tips.push('tambah simbol');
+  return { level, label: LEVELS[level], bits: Math.round(bits), tips };
+}
+function meterHTML(id) {
+  return `<div id="${id}" hidden><div class="meter" data-l="0"><div class="meter-bars"><i></i><i></i><i></i><i></i></div><span class="meter-lbl"></span></div><div class="meter-tip"></div></div>`;
+}
+function setMeter(sel, pw) {
+  const box = $(sel); if (!box) return;
+  if (!pw) { box.hidden = true; return; }
+  const s = strength(pw);
+  box.hidden = false;
+  box.querySelector('.meter').dataset.l = s.level;
+  box.querySelector('.meter-lbl').textContent = s.label;
+  box.querySelector('.meter-tip').textContent = `≈ ${s.bits} bit` + (s.tips.length ? ' • saran: ' + s.tips.slice(0, 3).join(', ') : '');
+}
+function randInt(n) { // acak kriptografis tanpa bias
+  const lim = Math.floor(0x100000000 / n) * n, a = new Uint32Array(1);
+  do crypto.getRandomValues(a); while (a[0] >= lim);
+  return a[0] % n;
+}
+function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = randInt(i + 1); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
+function extraChars(n, o) {
+  const sets = [o.lower && 'abcdefghijkmnopqrstuvwxyz', o.upper && 'ABCDEFGHJKLMNPQRSTUVWXYZ', o.digits && '23456789', o.symbols && '!@#$%&*?'].filter(Boolean);
+  const pool = [...(sets.length ? sets.join('') : 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*?')];
+  return Array.from({ length: n }, () => pool[randInt(pool.length)]);
+}
+function makePassword(o) {
+  const L = [...o.lower], U = [...o.upper], D = [...o.digits], S = o.symbols;
+  const extra = extraChars(Math.max(0, Math.min(32, o.extra | 0)), o);
+  if (o.mode === 'acak') return shuffle([...L, ...U, ...D, ...S, ...extra]).join('');
+  // urut: teks (kapital+huruf) berurutan, angka dibagi rata di sela-selanya, lalu karakter acak, lalu simbol
+  const base = o.first === 'lower' ? [...L, ...U] : [...U, ...L];
+  let out = '';
+  if (!base.length) out = D.join('');
+  else {
+    const per = Math.floor(D.length / base.length), rem = D.length % base.length;
+    let k = 0;
+    base.forEach((ch, i) => { const take = per + (i < rem ? 1 : 0); out += ch + D.slice(k, k + take).join(''); k += take; });
+  }
+  return out + extra.join('') + S;
+}
+function bindMaker() {
+  const ids = ['pmLower', 'pmDigits', 'pmSymbols', 'pmUpper', 'pmFirst', 'pmExtra'];
+  const read = () => ({
+    lower: $('#pmLower').value, digits: $('#pmDigits').value, symbols: $('#pmSymbols').value, upper: $('#pmUpper').value,
+    first: $('#pmFirst').value, extra: Number($('#pmExtra').value) || 0,
+    mode: (document.querySelector('input[name="pmMode"]:checked') || {}).value || 'urut',
+  });
+  const draw = () => {
+    const o = read();
+    $('#pmFirstWrap').style.display = o.mode === 'urut' ? '' : 'none';
+    const pw = (o.lower || o.digits || o.symbols || o.upper || o.extra) ? makePassword(o) : '';
+    $('#pmOut').textContent = pw || 'Isi komponen di atas';
+    $('#pmOut').dataset.pw = pw;
+    setMeter('#pmMeter', pw);
+  };
+  ids.forEach(i => $('#' + i).addEventListener('input', draw));
+  document.querySelectorAll('input[name="pmMode"]').forEach(r => r.addEventListener('change', draw));
+  $('#pmAgain').onclick = draw;
+  $('#pmUse').onclick = () => {
+    const pw = $('#pmOut').dataset.pw;
+    if (!pw) return toast('Isi komponen dulu');
+    $('#pwInput').value = pw; setMeter('#pwMeter', pw); toast('Password dipakai');
+  };
+  draw();
+}
+
 function menuOptions(selected) {
   return menu.map(p => p.children.length
     ? `<optgroup label="${esc(p.label)}">${p.children.map(c => `<option value="${esc(c.id)}" ${c.id === selected ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</optgroup>`
@@ -348,13 +462,37 @@ function openForm(e) {
       <label class="lbl2">${esc(L().site)}</label><input class="fld" name="website" value="${esc(e?.website)}" placeholder="${esc(L().ph)}" required>
       <label class="lbl2">User</label><input class="fld" name="user" value="${esc(e?.user)}">
       <label class="lbl2">Password</label>
-      <div class="row"><input class="fld" name="password" id="pwInput" placeholder="${e ? 'Kosongkan jika tidak diubah' : ''}"><button type="button" class="btn" id="gen">Acak</button></div>
+      <div class="row"><input class="fld" name="password" id="pwInput" placeholder="${e ? 'Kosongkan jika tidak diubah' : ''}" autocomplete="off"><button type="button" class="btn" id="gen">Generate</button></div>
+      ${meterHTML('pwMeter')}
+      <details class="pm" id="pm">
+        <summary>Password Maker (kombinasi)</summary>
+        <div class="pm-grid">
+          <div><label class="lbl2">Huruf (kecil)</label><input class="fld" id="pmLower" placeholder="fuad" autocomplete="off"></div>
+          <div><label class="lbl2">Angka</label><input class="fld" id="pmDigits" placeholder="1052" autocomplete="off" inputmode="numeric"></div>
+          <div><label class="lbl2">Simbol</label><input class="fld" id="pmSymbols" placeholder="@#$" autocomplete="off"></div>
+          <div><label class="lbl2">Kapital</label><input class="fld" id="pmUpper" placeholder="MUZ" autocomplete="off"></div>
+        </div>
+        <div class="pm-radios">
+          <label><input type="radio" name="pmMode" value="urut" checked> Urut (selang-seling)</label>
+          <label><input type="radio" name="pmMode" value="acak"> Acak</label>
+        </div>
+        <div class="pm-grid">
+          <div id="pmFirstWrap"><label class="lbl2">Urutan teks</label><select class="fld" id="pmFirst"><option value="upper">Kapital dulu, lalu huruf</option><option value="lower">Huruf dulu, lalu kapital</option></select></div>
+          <div><label class="lbl2">Tambah karakter acak</label><input class="fld" id="pmExtra" type="number" min="0" max="32" value="0" inputmode="numeric"></div>
+        </div>
+        <div class="pm-out" id="pmOut"></div>
+        ${meterHTML('pmMeter')}
+        <div class="pm-actions"><button type="button" class="btn primary" id="pmUse">Pakai</button><button type="button" class="btn" id="pmAgain">Buat ulang</button></div>
+        <div class="hint" style="margin:0 0 12px">Urut: huruf disusun berurutan, angka dibagi rata di sela-selanya, simbol di akhir (contoh: Q + az + 051092 + ! menjadi <b>Q05a10z92!</b>). Acak: semua karakter diacak. Nama dan tanggal lahir mudah ditebak, jadi tambahkan karakter acak agar lebih kuat.</div>
+      </details>
       <label class="lbl2">Teknologi</label><input class="fld" name="tech" list="techList" value="${esc(e?.tech)}" placeholder="contoh: Laravel, Express.js">
       <datalist id="techList">${[...new Set(entries.map(x => x.tech).filter(Boolean))].map(t => `<option value="${esc(t)}">`).join('')}</datalist>
       <div class="foot"><button type="button" class="btn" id="cancel">Batal</button><button class="btn primary">Simpan</button></div>
     </form>`);
   $('#cancel').onclick = closeModal;
-  $('#gen').onclick = () => { $('#pwInput').value = genPass(); };
+  $('#gen').onclick = () => { $('#pwInput').value = genPass(); setMeter('#pwMeter', $('#pwInput').value); };
+  $('#pwInput').oninput = () => setMeter('#pwMeter', $('#pwInput').value);
+  bindMaker();
   $('#form').onsubmit = async ev => {
     ev.preventDefault();
     const f = Object.fromEntries(new FormData(ev.target));
