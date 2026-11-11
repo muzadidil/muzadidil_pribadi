@@ -18,7 +18,7 @@ if (!ADMIN_HASH || !SESSION_SECRET || !DATA_KEY || DATA_KEY.length !== 64) {
 const KEY = Buffer.from(DATA_KEY, 'hex');
 
 // ---- penyimpanan terenkripsi (kolom password: AES-256-GCM) ----
-const DB_DIR = path.join(__dirname, 'data');
+const DB_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const DB_FILE = path.join(DB_DIR, 'vault.json');
 fs.mkdirSync(DB_DIR, { recursive: true });
 let entries = [];
