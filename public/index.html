@@ -13,17 +13,23 @@
 
   /* SIDEBAR */
   .sidebar { width: 220px; background: #1d2c3a; color: #c5ced6; display: flex; flex-direction: column; flex-shrink: 0; user-select: none; }
-  .brand { height: 76px; display: flex; align-items: center; padding: 0 24px; border-bottom: 1px solid #16222d; color: #fff; font-size: 17px; font-weight: 700; letter-spacing: .3px; }
+  .brand { height: 76px; display: flex; align-items: center; padding: 0 24px; border-bottom: 1px solid #16222d; color: #fff; font-size: 17px; font-weight: 700; letter-spacing: .3px; flex-shrink: 0; }
   .brand span { color: #00abdb; margin-right: 6px; }
-  .acct { padding: 14px 22px; border-bottom: 1px solid #16222d; display: flex; align-items: center; gap: 10px; font-size: 12px; }
+  .acct { padding: 14px 22px; border-bottom: 1px solid #16222d; display: flex; align-items: center; gap: 10px; font-size: 12px; flex-shrink: 0; }
   .ava { width: 34px; height: 34px; border-radius: 50%; background: #2574a9; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; }
   .acct b { color: #fff; display: block; font-size: 13px; }
   .acct small { color: #9aa8b6; }
-  nav { flex: 1; padding: 6px 0; }
+  nav { flex: 1; padding: 6px 0; overflow-y: auto; }
   nav a { display: block; padding: 13px 22px; font-size: 13px; color: #c5ced6; text-decoration: none; cursor: pointer; border-left: 3px solid transparent; }
   nav a:hover { color: #fff; background: #223344; }
   nav a.active { color: #fff; font-weight: 600; background: #223344; border-left-color: #00abdb; }
-  .side-foot { padding: 16px 22px; border-top: 1px solid #283a4b; background: #1f2f3e; }
+  nav a.grp-h { display: flex; align-items: center; }
+  nav a.grp-h .caret { display: inline-block; width: 14px; font-size: 10px; color: #9aa8b6; transition: transform .15s; margin-right: 4px; }
+  nav a.grp-h.open { color: #fff; font-weight: 600; }
+  nav a.grp-h.open .caret { transform: rotate(90deg); color: #fff; }
+  nav a.sublink { padding: 11px 22px 11px 44px; font-size: 12.5px; }
+  .nav-sep { height: 1px; background: #283a4b; margin: 8px 0; }
+  .side-foot { padding: 16px 22px; border-top: 1px solid #283a4b; background: #1f2f3e; flex-shrink: 0; }
   .side-foot button { width: 100%; height: 32px; background: none; border: 1px solid #3a4f63; color: #ff8a8a; border-radius: 4px; cursor: pointer; font-size: 12px; }
   .side-foot button:hover { background: #2a3d50; }
 
@@ -40,11 +46,11 @@
   .hamb { display: none; }
 
   /* DASHBOARD */
-  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
   .card { border: 1px solid #e3e8ed; border-radius: 6px; padding: 18px 20px; }
   .card .lbl { font-size: 12px; color: #8a96a3; text-transform: uppercase; letter-spacing: .5px; }
   .card .val { font-size: 32px; font-weight: 600; color: #2c3a47; margin-top: 6px; }
-  .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
   .panel { border: 1px solid #e3e8ed; border-radius: 6px; padding: 18px 20px; }
   .panel h2 { font-size: 14px; font-weight: 600; margin-bottom: 14px; color: #2c3a47; }
   .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 13px; }
@@ -57,7 +63,7 @@
   .recent-row .tech { color: #8a96a3; flex-shrink: 0; }
   .empty { color: #8a96a3; font-size: 13px; padding: 8px 0; }
 
-  /* TABEL PASSWORD */
+  /* TABEL */
   .tools { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
   .tools input, .tools select { height: 36px; border: 1px solid #d3d9df; border-radius: 4px; padding: 0 12px; font-size: 13px; background: #fff; }
   .tools input { flex: 1; min-width: 200px; }
@@ -76,29 +82,38 @@
   .acts { white-space: nowrap; display: flex; gap: 6px; }
   .count { color: #8a96a3; font-size: 12px; margin-top: 10px; }
 
-  /* MODAL */
+  /* FORM / MODAL */
+  .fld { width: 100%; height: 38px; border: 1px solid #d3d9df; border-radius: 4px; padding: 0 12px; font-size: 14px; font-family: inherit; background: #fff; }
+  .fld:focus { outline: none; border-color: #00abdb; }
+  .lbl2 { display: block; font-size: 12px; color: #5b6772; margin: 12px 0 5px; }
   .modal-bg { position: fixed; inset: 0; background: rgba(20,30,40,.55); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
   .modal-bg.open { display: flex; }
   .modal { background: #fff; border-radius: 6px; width: 100%; max-width: 460px; padding: 24px; max-height: 92vh; overflow-y: auto; }
   .modal h2 { font-size: 17px; margin-bottom: 16px; }
-  .modal label { display: block; font-size: 12px; color: #5b6772; margin: 12px 0 5px; }
-  .modal input, .modal textarea { width: 100%; height: 38px; border: 1px solid #d3d9df; border-radius: 4px; padding: 0 12px; font-size: 14px; font-family: inherit; }
-  .modal textarea { height: 180px; padding: 10px 12px; font-family: Consolas, monospace; font-size: 12px; }
-  .modal input:focus, .modal textarea:focus { outline: none; border-color: #00abdb; }
+  .modal textarea { width: 100%; height: 180px; border: 1px solid #d3d9df; border-radius: 4px; padding: 10px 12px; font-family: Consolas, monospace; font-size: 12px; }
+  .modal textarea:focus { outline: none; border-color: #00abdb; }
   .row { display: flex; gap: 8px; }
   .modal .foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
-  .fld { width: 100%; height: 38px; border: 1px solid #d3d9df; border-radius: 4px; padding: 0 12px; font-size: 14px; font-family: inherit; }
-  .fld:focus { outline: none; border-color: #00abdb; }
-  .hint { font-size: 12px; color: #8a96a3; margin-top: 6px; }
-  .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #1d2c3a; color: #fff; padding: 10px 18px; border-radius: 4px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 20; }
+  .hint { font-size: 12px; color: #8a96a3; margin-top: 6px; line-height: 1.5; }
+  .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #1d2c3a; color: #fff; padding: 10px 18px; border-radius: 4px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 20; max-width: 90vw; }
   .toast.show { opacity: 1; }
+
+  /* KELOLA MENU */
+  .mrow { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .mrow.child { margin-left: 28px; }
+  .mrow .fld { height: 34px; font-size: 13px; }
+  .mrow .mlabel { flex: 2; min-width: 0; }
+  .mrow .msite { flex: 1.2; min-width: 0; }
+  .mrow .msite-ph { flex: 1.2; }
+  .mgroup { border-bottom: 1px solid #f0f3f5; padding-bottom: 6px; margin-bottom: 10px; }
 
   @media (max-width: 820px) {
     .sidebar { position: fixed; left: -230px; top: 0; bottom: 0; z-index: 9; transition: left .2s; }
     .sidebar.open { left: 0; }
     main { padding: 18px 16px 40px; }
-    .panels { grid-template-columns: 1fr; }
     .hamb { display: inline-block; }
+    .mrow { flex-wrap: wrap; }
+    .mrow.child { margin-left: 14px; }
   }
 </style>
 </head>
@@ -107,12 +122,7 @@
   <aside class="sidebar" id="side">
     <div class="brand"><span>&#9919;</span> Gudang Password</div>
     <div class="acct"><div class="ava">M</div><div><b>muzadidil</b><small>muzadidil.zasha.online</small></div></div>
-    <nav>
-      <a data-route="dashboard" href="#dashboard">Dashboard</a>
-      <a data-route="password" href="#password">Password</a>
-      <a data-route="ssh" href="#ssh">SSH</a>
-      <a data-route="akun" href="#akun">Akun</a>
-    </nav>
+    <nav id="nav"></nav>
     <div class="side-foot"><button id="logout">Keluar</button></div>
   </aside>
 
@@ -135,9 +145,7 @@
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 let entries = [], filter = { q: '', tech: '' }, kind = 'password';
-const L = () => kind === 'ssh'
-  ? { title: 'SSH', site: 'Host / IP', ph: 'contoh: 103.12.34.56 atau srv1.zasha.online' }
-  : { title: 'Password', site: 'Website', ph: 'contoh: pos.zasha.online' };
+let menu = [], openGroups = new Set(), currentRoute = 'dashboard';
 
 async function api(url, method = 'GET', body) {
   const r = await fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
@@ -146,55 +154,89 @@ async function api(url, method = 'GET', body) {
   if (!r.ok) throw new Error(d.error || 'Terjadi kesalahan');
   return d;
 }
-function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 1800); }
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 1800 + msg.length * 40); }
 async function copy(text) {
   try { await navigator.clipboard.writeText(text); }
   catch (_) { const a = document.createElement('textarea'); a.value = text; document.body.appendChild(a); a.select(); document.execCommand('copy'); a.remove(); }
   toast('Disalin');
 }
 const urlOf = w => /^https?:\/\//i.test(w) ? w : (/^[\w-]+(\.[\w-]+)+/.test(w) ? 'https://' + w : '');
+const newId = () => 'm' + Math.random().toString(36).slice(2, 8);
+
+/* ---------- MENU / SIDEBAR ---------- */
+const leaves = () => menu.flatMap(p => p.children.length
+  ? p.children.map(c => ({ ...c, path: p.label + ' › ' + c.label }))
+  : [{ ...p, path: p.label }]);
+const L = () => {
+  const l = leaves().find(x => x.id === kind) || { site: 'Website', path: kind };
+  return { title: l.path, site: l.site || 'Website', ph: l.site === 'Host / IP' ? 'contoh: 103.12.34.56' : 'contoh: pos.zasha.online' };
+};
+async function loadMenu() { menu = await api('/api/menu'); }
+function buildNav() {
+  const r = currentRoute;
+  const a = (route, label, cls = '') => `<a class="${cls}${r === route ? ' active' : ''}" data-route="${esc(route)}" href="#${esc(route)}">${esc(label)}</a>`;
+  let h = a('dashboard', 'Dashboard');
+  for (const p of menu) {
+    if (p.children.length) {
+      const open = openGroups.has(p.id);
+      h += `<a class="grp-h${open ? ' open' : ''}" data-grp="${esc(p.id)}"><span class="caret">&#9656;</span>${esc(p.label)}</a>`;
+      if (open) h += p.children.map(c => a('m/' + c.id, c.label, 'sublink')).join('');
+    } else h += a('m/' + p.id, p.label);
+  }
+  h += '<div class="nav-sep"></div>' + a('menu', 'Kelola Menu') + a('akun', 'Akun');
+  $('#nav').innerHTML = h;
+}
+$('#nav').addEventListener('click', e => {
+  const g = e.target.closest('[data-grp]');
+  if (!g) return;
+  const id = g.dataset.grp;
+  openGroups.has(id) ? openGroups.delete(id) : openGroups.add(id);
+  buildNav();
+});
 
 /* ---------- DASHBOARD ---------- */
 async function renderDashboard() {
   $('#title').textContent = 'Dashboard';
   $('#topActions').innerHTML = '';
   const s = await api('/api/stats');
-  const max = Math.max(1, ...s.byTech.map(t => t.count));
+  const bars = list => {
+    const max = Math.max(1, ...list.map(t => t.count));
+    return list.length ? list.map(t => `<div class="bar-row"><div class="nm" title="${esc(t.name)}">${esc(t.name)}</div><div class="track"><div class="fill" style="width:${t.count / max * 100}%"></div></div><div class="ct">${t.count}</div></div>`).join('') : '<div class="empty">Belum ada data.</div>';
+  };
   $('#view').innerHTML = `
     <div class="cards">
-      <div class="card"><div class="lbl">Total Aplikasi</div><div class="val">${s.total}</div></div>
-      <div class="card"><div class="lbl">Total SSH</div><div class="val">${s.sshTotal}</div></div>
+      <div class="card"><div class="lbl">Total Data</div><div class="val">${s.total}</div></div>
+      <div class="card"><div class="lbl">Jumlah Menu</div><div class="val">${s.menuCount}</div></div>
       <div class="card"><div class="lbl">Jenis Teknologi</div><div class="val">${s.techCount}</div></div>
       <div class="card"><div class="lbl">Tanpa Password</div><div class="val">${s.noPassword}</div></div>
     </div>
     <div class="panels">
-      <div class="panel"><h2>Aplikasi per Teknologi</h2>
-        ${s.byTech.length ? s.byTech.map(t => `<div class="bar-row"><div class="nm" title="${esc(t.name)}">${esc(t.name)}</div><div class="track"><div class="fill" style="width:${t.count / max * 100}%"></div></div><div class="ct">${t.count}</div></div>`).join('') : '<div class="empty">Belum ada data.</div>'}
-      </div>
+      <div class="panel"><h2>Data per Menu</h2>${bars(s.byMenu)}</div>
+      <div class="panel"><h2>Data per Teknologi</h2>${bars(s.byTech)}</div>
       <div class="panel"><h2>Terakhir Diubah</h2>
         ${s.recent.length ? s.recent.map(e => `<div class="recent-row"><span>${esc(e.website)}</span><span class="tech">${esc(e.tech)}</span></div>`).join('') : '<div class="empty">Belum ada data.</div>'}
       </div>
     </div>`;
 }
 
-/* ---------- PASSWORD ---------- */
-async function renderPassword() {
+/* ---------- DAFTAR DATA (satu per menu) ---------- */
+async function renderList() {
   $('#title').textContent = L().title;
   $('#topActions').innerHTML = `<button class="btn" id="btnImport">Impor</button> <button class="btn primary" id="btnAdd">+ Tambah</button>`;
   $('#btnAdd').onclick = () => openForm();
   $('#btnImport').onclick = openImport;
   $('#view').innerHTML = `
     <div class="tools">
-      <input id="q" placeholder="Cari ${L().site.toLowerCase()}, user, atau teknologi..." value="${esc(filter.q)}">
+      <input id="q" placeholder="Cari ${esc(L().site.toLowerCase())}, user, atau teknologi..." value="${esc(filter.q)}">
       <select id="techSel"></select>
     </div>
     <div class="tbl-wrap"><table>
-      <thead><tr><th>${L().site}</th><th>User</th><th>Password</th><th>Teknologi</th><th></th></tr></thead>
+      <thead><tr><th>${esc(L().site)}</th><th>User</th><th>Password</th><th>Teknologi</th><th></th></tr></thead>
       <tbody id="tbody"></tbody>
     </table></div>
     <div class="count" id="count"></div>`;
   $('#q').oninput = e => { filter.q = e.target.value; drawRows(); };
-  entries = await api('/api/entries?kind=' + kind);
+  entries = await api('/api/entries?kind=' + encodeURIComponent(kind));
   const techs = [...new Set(entries.map(e => e.tech).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   $('#techSel').innerHTML = '<option value="">Semua teknologi</option>' + techs.map(t => `<option ${t === filter.tech ? 'selected' : ''}>${esc(t)}</option>`).join('');
   $('#techSel').onchange = e => { filter.tech = e.target.value; drawRows(); };
@@ -207,7 +249,7 @@ function drawRows() {
     .sort((a, b) => a.website.localeCompare(b.website));
   $('#tbody').innerHTML = rows.length ? rows.map(e => {
     const u = urlOf(e.website);
-    return `<tr data-id="${e.id}">
+    return `<tr data-id="${esc(e.id)}">
       <td class="site">${u ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(e.website)}</a>` : esc(e.website)}</td>
       <td>${esc(e.user)} ${e.user ? `<button class="btn sm" data-a="cu">Salin</button>` : ''}</td>
       <td><span class="pw" data-pw>&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</span></td>
@@ -219,7 +261,7 @@ function drawRows() {
         <button class="btn sm danger" data-a="del">Hapus</button>
       </div></td></tr>`;
   }).join('') : '<tr><td colspan="5" class="empty" style="text-align:center;padding:26px">Tidak ada data.</td></tr>';
-  $('#count').textContent = `${rows.length} dari ${entries.length} aplikasi`;
+  $('#count').textContent = `${rows.length} dari ${entries.length} data`;
 }
 document.addEventListener('click', async ev => {
   const b = ev.target.closest('[data-a]');
@@ -236,7 +278,7 @@ document.addEventListener('click', async ev => {
       else { span.textContent = (await api(`/api/entries/${id}/password`)).password || '(kosong)'; b.textContent = 'Sembunyi'; }
     }
     else if (a === 'edit') openForm(e);
-    else if (a === 'del' && confirm(`Hapus "${e.website}"?`)) { await api(`/api/entries/${id}`, 'DELETE'); toast('Dihapus'); renderPassword(); }
+    else if (a === 'del' && confirm(`Hapus "${e.website}"?`)) { await api(`/api/entries/${id}`, 'DELETE'); toast('Dihapus'); renderList(); }
   } catch (err) { if (err.message !== '401') toast(err.message); }
 });
 
@@ -251,14 +293,20 @@ function genPass() {
   const a = new Uint32Array(16); crypto.getRandomValues(a);
   return [...a].map(n => cs[n % cs.length]).join('');
 }
+function menuOptions(selected) {
+  return menu.map(p => p.children.length
+    ? `<optgroup label="${esc(p.label)}">${p.children.map(c => `<option value="${esc(c.id)}" ${c.id === selected ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</optgroup>`
+    : `<option value="${esc(p.id)}" ${p.id === selected ? 'selected' : ''}>${esc(p.label)}</option>`).join('');
+}
 function openForm(e) {
-  openModal(`<h2>${e ? 'Ubah' : 'Tambah'} ${L().title}</h2>
+  openModal(`<h2>${e ? 'Ubah' : 'Tambah'} Data</h2>
     <form id="form" autocomplete="off">
-      <label>${L().site}</label><input name="website" value="${esc(e?.website)}" placeholder="${esc(L().ph)}" required>
-      <label>User</label><input name="user" value="${esc(e?.user)}">
-      <label>Password</label>
-      <div class="row"><input name="password" id="pwInput" placeholder="${e ? 'Kosongkan jika tidak diubah' : ''}"><button type="button" class="btn" id="gen">Acak</button></div>
-      <label>Teknologi</label><input name="tech" list="techList" value="${esc(e?.tech)}" placeholder="contoh: Laravel, Express.js">
+      <label class="lbl2" style="margin-top:0">Menu</label><select class="fld" name="kind">${menuOptions(e ? e.kind : kind)}</select>
+      <label class="lbl2">${esc(L().site)}</label><input class="fld" name="website" value="${esc(e?.website)}" placeholder="${esc(L().ph)}" required>
+      <label class="lbl2">User</label><input class="fld" name="user" value="${esc(e?.user)}">
+      <label class="lbl2">Password</label>
+      <div class="row"><input class="fld" name="password" id="pwInput" placeholder="${e ? 'Kosongkan jika tidak diubah' : ''}"><button type="button" class="btn" id="gen">Acak</button></div>
+      <label class="lbl2">Teknologi</label><input class="fld" name="tech" list="techList" value="${esc(e?.tech)}" placeholder="contoh: Laravel, Express.js">
       <datalist id="techList">${[...new Set(entries.map(x => x.tech).filter(Boolean))].map(t => `<option value="${esc(t)}">`).join('')}</datalist>
       <div class="foot"><button type="button" class="btn" id="cancel">Batal</button><button class="btn primary">Simpan</button></div>
     </form>`);
@@ -269,14 +317,15 @@ function openForm(e) {
     const f = Object.fromEntries(new FormData(ev.target));
     try {
       if (e) { if (f.password === '') delete f.password; await api(`/api/entries/${e.id}`, 'PUT', f); }
-      else await api('/api/entries', 'POST', { ...f, kind });
-      closeModal(); toast('Tersimpan'); renderPassword();
+      else await api('/api/entries', 'POST', f);
+      closeModal(); toast('Tersimpan'); renderList();
     } catch (err) { if (err.message !== '401') toast(err.message); }
   };
 }
 function parseCSV(text) {
   const rows = []; let row = [], cur = '', q = false;
-  const delim = text.split('\n')[0].includes('\t') ? '\t' : (text.split('\n')[0].includes(';') && !text.split('\n')[0].includes(',') ? ';' : ',');
+  const first = text.split('\n')[0];
+  const delim = first.includes('\t') ? '\t' : (first.includes(';') && !first.includes(',') ? ';' : ',');
   for (let i = 0; i < text.length; i++) {
     const c = text[i];
     if (q) { if (c === '"' && text[i + 1] === '"') { cur += '"'; i++; } else if (c === '"') q = false; else cur += c; }
@@ -289,19 +338,80 @@ function parseCSV(text) {
   return rows.filter(r => r.some(x => x.trim()));
 }
 function openImport() {
-  openModal(`<h2>Impor Massal</h2>
-    <p class="hint" style="margin:0 0 6px">Tempel data dengan urutan kolom: <b>${L().site.toLowerCase()}, user, password, teknologi</b> (CSV / tab dari Excel). Baris header "website" otomatis dilewati.</p>
+  openModal(`<h2>Impor Massal ke "${esc(L().title)}"</h2>
+    <p class="hint" style="margin:0 0 6px">Tempel data dengan urutan kolom: <b>${esc(L().site.toLowerCase())}, user, password, teknologi</b> (CSV / tab dari Excel). Baris header otomatis dilewati.</p>
     <textarea id="csv" placeholder="pos.zasha.online,admin,rahasia123,Laravel"></textarea>
     <div class="foot"><button class="btn" id="cancel">Batal</button><button class="btn primary" id="go">Impor</button></div>`);
   $('#cancel').onclick = closeModal;
   $('#go').onclick = async () => {
     let rows = parseCSV($('#csv').value);
-    if (rows.length && /^website$/i.test(rows[0][0].trim())) rows.shift();
+    if (rows.length && /^(website|host|host \/ ip)$/i.test(rows[0][0].trim())) rows.shift();
     const data = rows.map(r => ({ kind, website: r[0] || '', user: r[1] || '', password: r[2] || '', tech: r[3] || '' }));
     if (!data.length) return toast('Tidak ada baris');
-    try { const r = await api('/api/import', 'POST', data); closeModal(); toast(`${r.imported} baris diimpor`); renderPassword(); }
+    try { const r = await api('/api/import', 'POST', data); closeModal(); toast(`${r.imported} baris diimpor`); renderList(); }
     catch (err) { if (err.message !== '401') toast(err.message); }
   };
+}
+
+/* ---------- KELOLA MENU ---------- */
+let draft = [];
+function renderMenuEditor() {
+  $('#title').textContent = 'Kelola Menu';
+  $('#topActions').innerHTML = '';
+  draft = JSON.parse(JSON.stringify(menu));
+  $('#view').innerHTML = `
+    <div class="panel" style="max-width:720px">
+      <h2>Susunan menu sidebar</h2>
+      <p class="hint" style="margin:-6px 0 16px">Menu tanpa sub adalah satu daftar data. Menu yang punya sub hanya jadi pengelompok; datanya ada di sub-menunya. "Judul kolom" adalah nama kolom pertama di tabel, misalnya Website atau Host / IP.</p>
+      <div id="mtree"></div>
+      <div style="display:flex;gap:10px;margin-top:14px">
+        <button class="btn" id="addParent">+ Menu utama</button>
+        <button class="btn primary" id="saveMenu">Simpan</button>
+      </div>
+    </div>`;
+  $('#mtree').oninput = ev => {
+    const t = ev.target; if (!t.dataset.f) return;
+    const p = draft[+t.dataset.p], n = t.dataset.c !== undefined ? p.children[+t.dataset.c] : p;
+    n[t.dataset.f] = t.value;
+  };
+  $('#mtree').onclick = ev => {
+    const b = ev.target.closest('[data-m]'); if (!b) return;
+    const p = +b.dataset.p, c = b.dataset.c !== undefined ? +b.dataset.c : null;
+    const arr = c === null ? draft : draft[p].children, i = c === null ? p : c, act = b.dataset.m;
+    if (act === 'up' && i > 0) [arr[i - 1], arr[i]] = [arr[i], arr[i - 1]];
+    else if (act === 'down' && i < arr.length - 1) [arr[i + 1], arr[i]] = [arr[i], arr[i + 1]];
+    else if (act === 'sub') draft[p].children.push({ id: newId(), label: 'Sub baru', site: draft[p].site || 'Website' });
+    else if (act === 'del') {
+      const name = c === null ? draft[p].label : draft[p].children[c].label;
+      if (!confirm(`Hapus menu "${name}"?${c === null && draft[p].children.length ? ' Sub-menunya ikut terhapus.' : ''}`)) return;
+      arr.splice(i, 1);
+    }
+    drawTree();
+  };
+  $('#addParent').onclick = () => { draft.push({ id: newId(), label: 'Menu baru', site: 'Website', children: [] }); drawTree(); };
+  $('#saveMenu').onclick = async () => {
+    if (draft.some(p => !p.label.trim() || p.children.some(c => !c.label.trim()))) return toast('Nama menu tidak boleh kosong');
+    try { menu = await api('/api/menu', 'PUT', draft); buildNav(); toast('Menu tersimpan'); renderMenuEditor(); }
+    catch (err) { if (err.message !== '401') toast(err.message); }
+  };
+  drawTree();
+}
+function drawTree() {
+  const btn = (m, p, c, t, cls = '') => `<button class="btn sm ${cls}" data-m="${m}" data-p="${p}" ${c !== undefined ? `data-c="${c}"` : ''}>${t}</button>`;
+  $('#mtree').innerHTML = draft.map((p, pi) => `
+    <div class="mgroup">
+      <div class="mrow">
+        <input class="fld mlabel" data-f="label" data-p="${pi}" value="${esc(p.label)}" placeholder="Nama menu" maxlength="40">
+        ${p.children.length ? '<span class="msite-ph"></span>' : `<input class="fld msite" data-f="site" data-p="${pi}" value="${esc(p.site)}" placeholder="Judul kolom" maxlength="30">`}
+        ${btn('up', pi, undefined, '&uarr;')}${btn('down', pi, undefined, '&darr;')}${btn('sub', pi, undefined, '+ Sub')}${btn('del', pi, undefined, 'Hapus', 'danger')}
+      </div>
+      ${p.children.map((c, ci) => `
+      <div class="mrow child">
+        <input class="fld mlabel" data-f="label" data-p="${pi}" data-c="${ci}" value="${esc(c.label)}" placeholder="Nama sub-menu" maxlength="40">
+        <input class="fld msite" data-f="site" data-p="${pi}" data-c="${ci}" value="${esc(c.site)}" placeholder="Judul kolom" maxlength="30">
+        ${btn('up', pi, ci, '&uarr;')}${btn('down', pi, ci, '&darr;')}${btn('del', pi, ci, 'Hapus', 'danger')}
+      </div>`).join('')}
+    </div>`).join('');
 }
 
 /* ---------- AKUN ---------- */
@@ -313,13 +423,13 @@ async function renderAkun() {
     <div class="panel" style="max-width:460px">
       <h2>Ganti user &amp; password login</h2>
       <form id="akunForm" autocomplete="off">
-        <label style="display:block;font-size:12px;color:#5b6772;margin:6px 0 5px">Password saat ini</label>
+        <label class="lbl2" style="margin-top:6px">Password saat ini</label>
         <input class="fld" name="currentPassword" type="password" autocomplete="current-password" required>
-        <label style="display:block;font-size:12px;color:#5b6772;margin:12px 0 5px">User baru</label>
+        <label class="lbl2">User baru</label>
         <input class="fld" name="newUser" value="${esc(a.user)}" autocomplete="username" required>
-        <label style="display:block;font-size:12px;color:#5b6772;margin:12px 0 5px">Password baru (min. 8 karakter)</label>
+        <label class="lbl2">Password baru (min. 8 karakter)</label>
         <input class="fld" name="newPassword" type="password" autocomplete="new-password" required>
-        <label style="display:block;font-size:12px;color:#5b6772;margin:12px 0 5px">Ulangi password baru</label>
+        <label class="lbl2">Ulangi password baru</label>
         <input class="fld" name="again" type="password" autocomplete="new-password" required>
         <div class="hint">Setelah disimpan, gunakan user dan password baru saat login berikutnya.</div>
         <div style="margin-top:18px"><button class="btn primary">Simpan</button></div>
@@ -336,17 +446,32 @@ async function renderAkun() {
 
 /* ---------- ROUTER ---------- */
 async function route() {
-  const h = location.hash.replace('#', '');
-  const r = ['password', 'ssh', 'akun'].includes(h) ? h : 'dashboard';
-  document.querySelectorAll('nav a').forEach(a => a.classList.toggle('active', a.dataset.route === r));
+  let h = location.hash.replace('#', '');
+  if (h === 'password' || h === 'ssh') h = 'm/' + h; // tautan lama
+  let r = 'dashboard';
+  if (h === 'akun' || h === 'menu') r = h;
+  else if (h.startsWith('m/') && leaves().some(l => 'm/' + l.id === h)) r = h;
+  currentRoute = r;
+  if (r.startsWith('m/')) {
+    const id = r.slice(2);
+    if (kind !== id) filter = { q: '', tech: '' };
+    kind = id;
+    const par = menu.find(p => p.children.some(c => c.id === id));
+    if (par) openGroups.add(par.id);
+  }
+  buildNav();
   $('#side').classList.remove('open');
-  if (r === 'password' || r === 'ssh') { if (kind !== r) filter = { q: '', tech: '' }; kind = r; }
-  try { await (r === 'dashboard' ? renderDashboard() : r === 'akun' ? renderAkun() : renderPassword()); } catch (e) { if (e.message !== '401') toast(e.message); }
+  try {
+    if (r === 'dashboard') await renderDashboard();
+    else if (r === 'akun') await renderAkun();
+    else if (r === 'menu') renderMenuEditor();
+    else await renderList();
+  } catch (e) { if (e.message !== '401') toast(e.message); }
 }
 window.addEventListener('hashchange', route);
 $('#hamb').onclick = () => $('#side').classList.toggle('open');
 $('#logout').onclick = async () => { await fetch('/api/logout', { method: 'POST' }); location.href = '/login'; };
-route();
+loadMenu().then(route).catch(e => { if (e.message !== '401') toast(e.message); });
 </script>
 </body>
 </html>

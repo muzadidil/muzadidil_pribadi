@@ -98,8 +98,8 @@ function mysqlStore() {
         await pool.query('INSERT INTO vault_entries (id,kind,website,username,password,tech,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)', vals(e));
     },
     async update(e) {
-      await pool.query('UPDATE vault_entries SET website=?, username=?, password=?, tech=?, updated_at=? WHERE id=?',
-        [e.website, e.user, e.password, e.tech, e.updatedAt, e.id]);
+      await pool.query('UPDATE vault_entries SET kind=?, website=?, username=?, password=?, tech=?, updated_at=? WHERE id=?',
+        [e.kind || 'password', e.website, e.user, e.password, e.tech, e.updatedAt, e.id]);
     },
     async remove(id) { const [r] = await pool.query('DELETE FROM vault_entries WHERE id=?', [id]); return r.affectedRows > 0; },
   };
@@ -203,7 +203,52 @@ app.post('/api/account', wrap(async (req, res) => {
   res.json({ ok: true, user: u });
 }));
 
-const kindOf = k => (k === 'ssh' ? 'ssh' : 'password');
+// ---- struktur menu sidebar (induk + sub), disimpan di penyimpanan ----
+// Tiap menu "daun" (tanpa sub) adalah satu daftar data; entri menyimpan id-nya di kolom kind.
+const kindOf = k => (typeof k === 'string' && /^[a-z0-9_-]{1,30}$/.test(k) ? k : 'password');
+const DEFAULT_MENU = [
+  { id: 'password', label: 'Password', site: 'Website', children: [] },
+  { id: 'ssh', label: 'SSH', site: 'Host / IP', children: [] },
+];
+async function getMenu() {
+  const s = await store.getSetting('menu');
+  if (s) { try { const m = JSON.parse(s); if (Array.isArray(m) && m.length) return m; } catch (_) {} }
+  return DEFAULT_MENU;
+}
+const leavesOf = menu => menu.flatMap(p => p.children && p.children.length
+  ? p.children.map(c => ({ id: c.id, label: c.label, site: c.site, path: p.label + ' › ' + c.label }))
+  : [{ id: p.id, label: p.label, site: p.site, path: p.label }]);
+const cleanNode = (n, withKids) => {
+  const o = {
+    id: kindOf(n && n.id) === (n && n.id) ? n.id : null,
+    label: String((n && n.label) || '').trim().slice(0, 40),
+    site: String((n && n.site) || 'Website').trim().slice(0, 30) || 'Website',
+  };
+  if (withKids) o.children = (Array.isArray(n.children) ? n.children : []).slice(0, 50).map(c => cleanNode(c, false));
+  return o;
+};
+app.get('/api/menu', wrap(async (req, res) => res.json(await getMenu())));
+app.put('/api/menu', wrap(async (req, res) => {
+  if (!Array.isArray(req.body) || !req.body.length || req.body.length > 50) return res.status(400).json({ error: 'Menu tidak valid.' });
+  const menu = req.body.map(n => cleanNode(n, true));
+  const seen = new Set();
+  for (const n of menu.flatMap(p => [p, ...p.children])) {
+    if (!n.id || !n.label) return res.status(400).json({ error: 'Setiap menu wajib punya nama.' });
+    if (seen.has(n.id)) return res.status(400).json({ error: 'ID menu ganda.' });
+    seen.add(n.id);
+  }
+  // menu yang tidak lagi jadi "daftar data" tidak boleh masih berisi data
+  const oldLeaves = leavesOf(await getMenu()), newIds = new Set(leavesOf(menu).map(l => l.id));
+  const all = await store.all();
+  for (const l of oldLeaves) {
+    if (newIds.has(l.id)) continue;
+    const n = all.filter(e => kindOf(e.kind) === l.id).length;
+    if (n) return res.status(409).json({ error: `Menu "${l.path}" masih berisi ${n} data. Pindahkan dulu lewat tombol Ubah (pilih menu lain).` });
+  }
+  await store.setSetting('menu', JSON.stringify(menu));
+  res.json(menu);
+}));
+const isLeaf = async k => leavesOf(await getMenu()).some(l => l.id === k);
 const clean = (b = {}) => ({
   kind: kindOf(b.kind),
   website: String(b.website || '').trim().slice(0, 300),
@@ -225,7 +270,8 @@ app.get('/api/entries/:id/password', wrap(async (req, res) => {
 }));
 app.post('/api/entries', wrap(async (req, res) => {
   const b = clean(req.body);
-  if (!b.website) return res.status(400).json({ error: 'Website wajib diisi' });
+  if (!b.website) return res.status(400).json({ error: 'Isian pertama wajib diisi' });
+  if (!(await isLeaf(b.kind))) return res.status(400).json({ error: 'Menu tujuan tidak valid' });
   const e = newEntry(b);
   await store.insert(e);
   res.status(201).json(pub(e));
@@ -234,8 +280,9 @@ app.put('/api/entries/:id', wrap(async (req, res) => {
   const e = (await store.all()).find(x => x.id === req.params.id);
   if (!e) return res.status(404).json({ error: 'Tidak ditemukan' });
   const b = clean(req.body);
-  if (!b.website) return res.status(400).json({ error: 'Website wajib diisi' });
-  const u = { ...e, website: b.website, user: b.user, tech: b.tech, updatedAt: new Date().toISOString() };
+  if (!b.website) return res.status(400).json({ error: 'Isian pertama wajib diisi' });
+  if (req.body.kind !== undefined && !(await isLeaf(b.kind))) return res.status(400).json({ error: 'Menu tujuan tidak valid' });
+  const u = { ...e, kind: req.body.kind !== undefined ? b.kind : kindOf(e.kind), website: b.website, user: b.user, tech: b.tech, updatedAt: new Date().toISOString() };
   // password tidak dikirim / null = tidak diubah
   if (req.body.password !== undefined && req.body.password !== null) u.password = enc(b.password);
   await store.update(u);
@@ -247,20 +294,22 @@ app.delete('/api/entries/:id', wrap(async (req, res) => {
 }));
 // impor massal: [{website,user,password,tech}, ...] (untuk 100+ aplikasi sekaligus)
 app.post('/api/import', wrap(async (req, res) => {
-  const rows = (Array.isArray(req.body) ? req.body : []).slice(0, 2000).map(clean).filter(b => b.website).map(newEntry);
+  const ok = new Set(leavesOf(await getMenu()).map(l => l.id));
+  const rows = (Array.isArray(req.body) ? req.body : []).slice(0, 2000).map(clean).filter(b => b.website && ok.has(b.kind)).map(newEntry);
   if (rows.length) await store.insert(rows);
   res.json({ imported: rows.length });
 }));
 app.get('/api/stats', wrap(async (req, res) => {
-  const everything = await store.all();
-  const sshTotal = everything.filter(e => kindOf(e.kind) === 'ssh').length;
-  const entries = everything.filter(e => kindOf(e.kind) === 'password');
+  const entries = await store.all();
+  const leaves = leavesOf(await getMenu());
+  const byMenu = leaves.map(l => ({ name: l.path, count: entries.filter(e => kindOf(e.kind) === l.id).length }));
   const byTech = {};
   for (const e of entries) { const t = e.tech || '(tanpa teknologi)'; byTech[t] = (byTech[t] || 0) + 1; }
   const recent = [...entries].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 8).map(pub);
   res.json({
     total: entries.length,
-    sshTotal,
+    menuCount: leaves.length,
+    byMenu,
     techCount: Object.keys(byTech).length,
     noPassword: entries.filter(e => dec(e.password) === '').length,
     byTech: Object.entries(byTech).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count })),
